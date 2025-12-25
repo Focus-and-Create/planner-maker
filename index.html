@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diary Planner Layout Builder</title>
+  <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1>Diary Planner Layout Builder</h1>
+      <div class="header-actions">
+        <button id="undoBtn" class="btn btn-secondary">↩ Undo</button>
+        <button id="redoBtn" class="btn btn-secondary">↪ Redo</button>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <aside class="sidebar sidebar-left">
+        <div class="sidebar-header">
+          <h2>Layout</h2>
+          <button id="addRowBtn" class="btn btn-primary btn-sm">+ Row</button>
+        </div>
+        <div id="rowList" class="row-list"></div>
+      </aside>
+
+      <main class="canvas-area">
+        <div class="canvas-controls">
+          <div class="control-group">
+            <label>Paper Size</label>
+            <select id="paperSize">
+              <option value="a4">A4 (210x297mm)</option>
+              <option value="letter">Letter (8.5x11in)</option>
+              <option value="tablet">Tablet (1024x1366px)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Orientation</label>
+            <select id="orientation">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+        </div>
+        <div id="canvasContainer" class="canvas-container"></div>
+      </main>
+
+      <aside class="sidebar sidebar-right">
+        <h2>Properties</h2>
+        <div id="propertyPanel" class="property-panel"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="Script.js"></script>
+</body>
+</html>

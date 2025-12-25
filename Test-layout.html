@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.canvas-container {
+  width: 600px;
+  height: 800px;
+  background: white;
+  border: 2px solid #ccc;
+  display: flex;
+}
+
+.layout-element {
+  background-color: #fafaf8;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.leaf {
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  padding: 12px;
+  background: lightblue;
+}
+
+.separator {
+  flex-shrink: 0;
+  background-color: #e5e7eb;
+}
+</style>
+</head>
+<body>
+<h2>Test: Simulating the Layout Builder</h2>
+
+<h3>Scenario: Root with 2 children (row direction)</h3>
+<div class="canvas-container">
+  <!-- Root element -->
+  <div class="layout-element" style="
+    display: flex;
+    flex-direction: row;
+    flex: none;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  ">
+    <!-- Child 1: flex: 0.5 1 0% -->
+    <div class="layout-element leaf" style="
+      display: flex;
+      flex-direction: column;
+      flex: 0.5 1 0%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    ">
+      Child 1 (flex: 0.5)
+    </div>
+    
+    <!-- Separator -->
+    <div class="separator" style="width: 4px; height: 100%;"></div>
+    
+    <!-- Child 2: flex: 0.5 1 0% -->
+    <div class="layout-element leaf" style="
+      display: flex;
+      flex-direction: column;
+      flex: 0.5 1 0%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    ">
+      Child 2 (flex: 0.5)
+    </div>
+  </div>
+</div>
+
+<h3>Test with flex: 1 1 0% (should be same)</h3>
+<div class="canvas-container">
+  <div class="layout-element" style="
+    display: flex;
+    flex-direction: row;
+    flex: none;
+    width: 100%;
+    height: 100%;
+  ">
+    <div class="layout-element leaf" style="flex: 1 1 0%; min-width: 0;">
+      Child 1 (flex: 1)
+    </div>
+    <div class="separator" style="width: 4px; height: 100%;"></div>
+    <div class="layout-element leaf" style="flex: 1 1 0%; min-width: 0;">
+      Child 2 (flex: 1)
+    </div>
+  </div>
+</div>
+
+<h3>Original problem: flex: 0 0 50%</h3>
+<div class="canvas-container">
+  <div class="layout-element" style="
+    display: flex;
+    flex-direction: row;
+    flex: none;
+    width: 100%;
+    height: 100%;
+  ">
+    <div class="layout-element leaf" style="flex: 0 0 50%; min-width: 0;">
+      Child 1 (flex: 0 0 50%)
+    </div>
+    <div class="separator" style="width: 4px; height: 100%;"></div>
+    <div class="layout-element leaf" style="flex: 0 0 50%; min-width: 0;">
+      Child 2 (flex: 0 0 50%)
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
