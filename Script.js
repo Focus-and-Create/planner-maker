@@ -64,8 +64,65 @@ let timeBlocks  = loadData('haru_blocks', []);
 let editingBlockId = null;
 let selectedBlockColor = BLOCK_COLORS[0];
 let editingBlockTodos = [];
+let snapMin = 10;
+let pointerDrag = null;
 
 function saveBlocks() { saveData('haru_blocks', timeBlocks); }
+
+function snapToGrid(minutes) {
+  return Math.round(minutes / snapMin) * snapMin;
+}
+
+function yToMinutes(clientY) {
+  const inner = document.getElementById('tlInner');
+  const rect  = inner.getBoundingClientRect();
+  // getBoundingClientRect already accounts for scroll, no scrollTop needed
+  return Math.max(0, Math.min(1439, Math.floor((clientY - rect.top) / PX_PER_MIN)));
+}
+
+function updatePreviewEl(el, startMin, endMin) {
+  const sh = Math.floor(startMin / 60), sm = startMin % 60;
+  const eh = Math.floor(endMin   / 60) % 24, em = endMin % 60;
+  el.style.top    = `${startMin * PX_PER_MIN}px`;
+  el.style.height = `${Math.max((endMin - startMin) * PX_PER_MIN, MIN_BLOCK_H)}px`;
+  el.textContent  = `${fmtTime(sh, sm)} – ${fmtTime(eh, em)}`;
+}
+
+function handlePointerDown(e) {
+  if (e.target.closest('.tl-block')) return;
+  e.preventDefault();
+
+  const startMin = snapToGrid(yToMinutes(e.clientY));
+  const endMin   = startMin + snapMin;
+
+  const preview = document.createElement('div');
+  preview.className = 'tl-block-preview';
+  updatePreviewEl(preview, startMin, endMin);
+  document.getElementById('tlInner').appendChild(preview);
+
+  pointerDrag = { startMin, endMin, preview, moved: false };
+  document.getElementById('tlInner').setPointerCapture(e.pointerId);
+}
+
+function handlePointerMove(e) {
+  if (!pointerDrag) return;
+  const rawMin    = yToMinutes(e.clientY);
+  const snapped   = snapToGrid(rawMin);
+  const endMin    = Math.max(pointerDrag.startMin + snapMin, snapped);
+  pointerDrag.endMin  = endMin;
+  pointerDrag.moved   = (endMin - pointerDrag.startMin) >= snapMin * 2;
+  updatePreviewEl(pointerDrag.preview, pointerDrag.startMin, endMin);
+}
+
+function handlePointerUp(e) {
+  if (!pointerDrag) return;
+  const { startMin, endMin, preview } = pointerDrag;
+  preview.remove();
+  pointerDrag = null;
+
+  const durationM = endMin - startMin;
+  openAddBlock(Math.floor(startMin / 60), startMin % 60, durationM);
+}
 
 function blockEndTime(b) {
   const totalMin = b.startH * 60 + b.startM + b.durationM;
@@ -160,7 +217,7 @@ function toggleBlockTodo(e, blockId, todoId) {
 }
 
 // ── Block sheet ──────────────────────────────────────────────────────────────
-function openAddBlock(startH, startM) {
+function openAddBlock(startH, startM, durationM = 60) {
   editingBlockId = null;
   editingBlockTodos = [];
   selectedBlockColor = BLOCK_COLORS[0];
@@ -170,8 +227,12 @@ function openAddBlock(startH, startM) {
   document.getElementById('blockLabel').value = '';
   document.getElementById('blockStartH').value = String(startH).padStart(2,'0');
   document.getElementById('blockStartM').value = String(startM).padStart(2,'0');
-  document.getElementById('blockDuration').value = '60';
+  document.getElementById('blockDuration').value = String(durationM);
   document.getElementById('blockTodoInput').value = '';
+  // Highlight matching duration preset if any
+  document.querySelectorAll('.dur-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.min) === durationM);
+  });
 
   renderBlockColorPicker();
   renderBlockTodoList();
@@ -546,17 +607,18 @@ function init() {
   renderTimeline();
   scrollToNow();
 
-  // Click on timeline track to add block
-  document.getElementById('tlInner').addEventListener('click', e => {
-    if (e.target.closest('.tl-block')) return;
-    const inner = document.getElementById('tlInner');
-    const rect = inner.getBoundingClientRect();
-    const scrollTop = document.getElementById('tlScroll').scrollTop;
-    const y = e.clientY - rect.top + scrollTop;
-    const totalMin = Math.floor(y / PX_PER_MIN);
-    const startH = Math.min(23, Math.floor(totalMin / 60));
-    const startM = Math.floor((totalMin % 60) / 15) * 15;
-    openAddBlock(startH, startM);
+  // Drag / tap on timeline to create block
+  const tlInner = document.getElementById('tlInner');
+  tlInner.addEventListener('pointerdown', handlePointerDown);
+  tlInner.addEventListener('pointermove', handlePointerMove);
+  tlInner.addEventListener('pointerup',   handlePointerUp);
+  tlInner.addEventListener('pointercancel', () => {
+    if (pointerDrag) { pointerDrag.preview.remove(); pointerDrag = null; }
+  });
+
+  // Snap selector
+  document.getElementById('snapSelect').addEventListener('change', e => {
+    snapMin = parseInt(e.target.value);
   });
 
   document.getElementById('addBlockBtn').addEventListener('click', () => {

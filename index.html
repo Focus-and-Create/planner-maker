@@ -33,7 +33,18 @@
       <div class="tl-page">
         <div class="tl-topbar">
           <div class="tl-date-label" id="tlDate"></div>
-          <button class="btn-ghost" id="addBlockBtn">+ 블록 추가</button>
+          <div class="tl-topbar-right">
+            <div class="snap-control">
+              <span class="snap-label">스냅</span>
+              <select id="snapSelect" class="snap-select">
+                <option value="5">5분</option>
+                <option value="10" selected>10분</option>
+                <option value="15">15분</option>
+                <option value="30">30분</option>
+              </select>
+            </div>
+            <button class="btn-ghost" id="addBlockBtn">+ 추가</button>
+          </div>
         </div>
         <div class="tl-layout">
           <div class="tl-scroll" id="tlScroll">
