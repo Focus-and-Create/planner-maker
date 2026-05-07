@@ -46,11 +46,18 @@
             <button class="btn-ghost" id="addBlockBtn">+ 추가</button>
           </div>
         </div>
-        <div class="tl-layout">
-          <div class="tl-scroll" id="tlScroll">
-            <div class="tl-inner" id="tlInner">
-              <!-- JS renders hour lines, labels, blocks, now-line -->
+        <div class="tl-two-panel">
+          <div class="tl-main">
+            <div class="tl-scroll" id="tlScroll">
+              <div class="tl-inner" id="tlInner">
+                <!-- JS renders hour lines, labels, blocks, now-line -->
+              </div>
             </div>
+          </div>
+          <div class="tl-side">
+            <div class="tl-side-header">할 일</div>
+            <div id="tlAssignHint" class="tl-assign-hint hidden">블록을 눌러 배치</div>
+            <div id="tlTodoList" class="tl-side-list"></div>
           </div>
         </div>
       </div>

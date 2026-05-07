@@ -37,7 +37,7 @@ function switchTab(id) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
-  if (id === 'today')   { renderTimeline(); scrollToNow(); }
+  if (id === 'today')   { renderTimeline(); renderTimelineSidebar(); scrollToNow(); }
   if (id === 'todo')    renderTodos();
   if (id === 'routine') renderRoutines();
   if (id === 'stats')   renderStats();
@@ -48,6 +48,7 @@ function switchTab(id) {
 // ────────────────────────────────────────────────────────────────────────────
 const PX_PER_MIN = 1.2;   // timeline density: px per minute
 const MIN_BLOCK_H = 30;   // minimum block height px
+const TL_PAD_TOP  = 14;   // top padding so hour-0 label isn't clipped
 
 const BLOCK_COLORS = [
   { bg: '#FCE4EC', border: '#E91E8C', name: '로즈' },
@@ -68,6 +69,7 @@ let snapMin = 10;
 let pointerDrag = null;
 let quickBlockId = null;
 let blockClickTimer = null;
+let pendingTodoId = null;
 
 function saveBlocks() { saveData('haru_blocks', timeBlocks); }
 
@@ -82,14 +84,13 @@ function snapToGrid(minutes) {
 function yToMinutes(clientY) {
   const inner = document.getElementById('tlInner');
   const rect  = inner.getBoundingClientRect();
-  // getBoundingClientRect already accounts for scroll, no scrollTop needed
-  return Math.max(0, Math.min(1439, Math.floor((clientY - rect.top) / PX_PER_MIN)));
+  return Math.max(0, Math.min(1439, Math.floor((clientY - rect.top - TL_PAD_TOP) / PX_PER_MIN)));
 }
 
 function updatePreviewEl(el, startMin, endMin) {
   const sh = Math.floor(startMin / 60), sm = startMin % 60;
   const eh = Math.floor(endMin   / 60) % 24, em = endMin % 60;
-  el.style.top    = `${startMin * PX_PER_MIN}px`;
+  el.style.top    = `${startMin * PX_PER_MIN + TL_PAD_TOP}px`;
   el.style.height = `${Math.max((endMin - startMin) * PX_PER_MIN, MIN_BLOCK_H)}px`;
   el.textContent  = `${fmtTime(sh, sm)} – ${fmtTime(eh, em)}`;
 }
@@ -156,7 +157,7 @@ function showQuickPopup(blockId) {
   const inner  = document.getElementById('tlInner');
   const scroll = document.getElementById('tlScroll');
   const iRect  = inner.getBoundingClientRect();
-  const blockTopPx = (block.startH * 60 + block.startM) * PX_PER_MIN;
+  const blockTopPx = (block.startH * 60 + block.startM) * PX_PER_MIN + TL_PAD_TOP;
   const blockMidVh = iRect.top + blockTopPx + (block.durationM * PX_PER_MIN) / 2;
   const clampedTop = Math.max(80, Math.min(window.innerHeight - 140, blockMidVh - 50));
 
@@ -201,11 +202,19 @@ function closeQuickPopup(deleteIfEmpty = true) {
 // ── Block click / dblclick ───────────────────────────────────────────────────
 function handleBlockClick(id) {
   clearTimeout(blockClickTimer);
+  if (pendingTodoId) {
+    blockClickTimer = setTimeout(() => assignTodoToBlock(pendingTodoId, id), 220);
+    return;
+  }
   blockClickTimer = setTimeout(() => showQuickPopup(id), 220);
 }
 
 function handleBlockDblClick(id) {
   clearTimeout(blockClickTimer);
+  if (pendingTodoId) {
+    assignTodoToBlock(pendingTodoId, id);
+    return;
+  }
   openEditBlock(id);
 }
 
@@ -225,36 +234,42 @@ function renderTimeline() {
 
   const totalH = 24;
   const totalPx = totalH * 60 * PX_PER_MIN;
-  inner.style.height = totalPx + 'px';
+  inner.style.height = (totalPx + TL_PAD_TOP + 10) + 'px';
 
   let html = '';
 
   // Hour lines + labels
   for (let h = 0; h < 24; h++) {
-    const top = h * 60 * PX_PER_MIN;
+    const top = h * 60 * PX_PER_MIN + TL_PAD_TOP;
     const topHalf = top + 30 * PX_PER_MIN;
     html += `<div class="tl-hour-line" style="top:${top}px"></div>`;
     html += `<div class="tl-half-line" style="top:${topHalf}px"></div>`;
     html += `<div class="tl-hour-label" style="top:${top}px">${String(h).padStart(2,'0')}</div>`;
   }
-  // Bottom line
-  html += `<div class="tl-hour-line" style="top:${totalPx}px"></div>`;
+  html += `<div class="tl-hour-line" style="top:${totalPx + TL_PAD_TOP}px"></div>`;
 
   // Blocks for today
   const todayBlocks = timeBlocks.filter(b => b.date === today);
   todayBlocks.forEach(b => {
-    const topPx = (b.startH * 60 + b.startM) * PX_PER_MIN;
+    const topPx    = (b.startH * 60 + b.startM) * PX_PER_MIN + TL_PAD_TOP;
     const heightPx = Math.max(b.durationM * PX_PER_MIN, MIN_BLOCK_H);
-    const end = blockEndTime(b);
+    const end       = blockEndTime(b);
     const timeRange = `${fmtTime(b.startH, b.startM)} – ${fmtTime(end.h, end.m)}`;
 
-    const doneTodos = (b.todos || []).filter(t => t.done).length;
-    const totalTodos = (b.todos || []).length;
-    const showProgress = totalTodos > 0;
+    const blockInternalTodos   = b.todos || [];
+    const assignedMainTodos    = todos.filter(t => (t.blockId || null) === b.id && t.createdAt === today);
+    const totalAll  = blockInternalTodos.length + assignedMainTodos.length;
+    const totalDone = blockInternalTodos.filter(t => t.done).length + assignedMainTodos.filter(t => t.completed).length;
 
-    const todoItems = (b.todos || []).map(t => `
+    const internalItems = blockInternalTodos.map(t => `
       <div class="tl-block-todo${t.done ? ' done' : ''}" onclick="toggleBlockTodo(event,'${b.id}','${t.id}')">
         <span class="tl-check">${t.done ? '✓' : ''}</span>
+        <span>${escapeHtml(t.text)}</span>
+      </div>`).join('');
+
+    const assignedItems = assignedMainTodos.map(t => `
+      <div class="tl-block-todo${t.completed ? ' done' : ''}" onclick="event.stopPropagation();toggleTodo('${t.id}')">
+        <span class="tl-check">${t.completed ? '✓' : ''}</span>
         <span>${escapeHtml(t.text)}</span>
       </div>`).join('');
 
@@ -269,28 +284,74 @@ function renderTimeline() {
             <span class="tl-block-label">${escapeHtml(b.label)}</span>
             <span class="tl-block-time">${timeRange}</span>
           </div>
-          ${showProgress ? `<div class="tl-block-progress">${doneTodos}/${totalTodos}</div>` : ''}
-          ${todoItems ? `<div class="tl-block-todos">${todoItems}</div>` : ''}
+          ${totalAll > 0 ? `<div class="tl-block-progress">${totalDone}/${totalAll}</div>` : ''}
+          ${internalItems || assignedItems ? `<div class="tl-block-todos">${internalItems}${assignedItems}</div>` : ''}
         </div>
       </div>`;
   });
 
   // Current time line
-  const now = new Date();
-  const nowPx = (now.getHours() * 60 + now.getMinutes()) * PX_PER_MIN;
+  const now   = new Date();
+  const nowPx = (now.getHours() * 60 + now.getMinutes()) * PX_PER_MIN + TL_PAD_TOP;
   html += `<div class="tl-now-line" id="tlNowLine" style="top:${nowPx}px">
     <div class="tl-now-dot"></div>
   </div>`;
 
-  // Click to add: invisible tap target over empty space (handled at container level)
   inner.innerHTML = html;
+}
+
+// ── Timeline sidebar (today's todos for block assignment) ────────────────────
+function renderTimelineSidebar() {
+  const cont = document.getElementById('tlTodoList');
+  if (!cont) return;
+  const hint = document.getElementById('tlAssignHint');
+  if (hint) hint.classList.toggle('hidden', !pendingTodoId);
+
+  const today = dateStr();
+  const todayTodos = todos.filter(t => t.createdAt === today);
+
+  if (todayTodos.length === 0) {
+    cont.innerHTML = '<div class="tl-side-empty">할 일 없음</div>';
+    return;
+  }
+
+  cont.innerHTML = todayTodos.map(t => {
+    const isPending = pendingTodoId === t.id;
+    const blockId   = t.blockId || null;
+    const block     = blockId ? timeBlocks.find(b => b.id === blockId) : null;
+    const blockLabel = block ? (block.label || '블록') : '';
+    return `
+      <div class="tl-side-todo${t.completed ? ' done' : ''}${isPending ? ' pending' : ''}"
+           data-priority="${t.priority}"
+           onclick="handleSideTodoClick('${t.id}')">
+        <div class="tl-side-check${t.completed ? ' checked' : ''}"
+             onclick="event.stopPropagation();toggleTodo('${t.id}')"></div>
+        <span class="tl-side-todo-text">${escapeHtml(t.text)}</span>
+        ${blockLabel ? `<span class="tl-side-assigned" style="background:${block.color.bg};color:${block.color.border}">${escapeHtml(blockLabel)}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function handleSideTodoClick(todoId) {
+  pendingTodoId = (pendingTodoId === todoId) ? null : todoId;
+  renderTimelineSidebar();
+}
+
+function assignTodoToBlock(todoId, blockId) {
+  const todo = todos.find(t => t.id === todoId);
+  pendingTodoId = null;
+  if (!todo) { renderTimelineSidebar(); return; }
+  todo.blockId = (todo.blockId === blockId) ? null : blockId;
+  saveTodos();
+  renderTimelineSidebar();
+  renderTimeline();
 }
 
 function scrollToNow() {
   const scroll = document.getElementById('tlScroll');
   if (!scroll) return;
   const now = new Date();
-  const nowPx = (now.getHours() * 60 + now.getMinutes()) * PX_PER_MIN;
+  const nowPx = (now.getHours() * 60 + now.getMinutes()) * PX_PER_MIN + TL_PAD_TOP;
   scroll.scrollTop = Math.max(0, nowPx - 180);
 }
 
@@ -439,9 +500,10 @@ function saveTodos() { saveData('haru_todos', todos); }
 function addTodo(text) {
   if (!text.trim()) return;
   todos.push({ id: uid(), text: text.trim(), priority: selectedPriority,
-    completed: false, createdAt: dateStr(), completedAt: null });
+    completed: false, createdAt: dateStr(), completedAt: null, blockId: null });
   saveTodos();
   renderTodos();
+  renderTimelineSidebar();
 }
 
 function toggleTodo(id) {
@@ -451,12 +513,16 @@ function toggleTodo(id) {
   t.completedAt = t.completed ? new Date().toISOString() : null;
   saveTodos();
   renderTodos();
+  renderTimelineSidebar();
+  renderTimeline();
 }
 
 function deleteTodo(id) {
   todos = todos.filter(t => t.id !== id);
   saveTodos();
   renderTodos();
+  renderTimelineSidebar();
+  renderTimeline();
 }
 
 function renderTodos() {
@@ -693,6 +759,7 @@ function init() {
 
   // ── Timeline ──
   renderTimeline();
+  renderTimelineSidebar();
   scrollToNow();
 
   // Drag / tap on timeline to create block
