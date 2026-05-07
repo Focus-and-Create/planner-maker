@@ -3,52 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Diary Planner Layout Builder</title>
+  <title>동그라미 일정표 만들기</title>
   <link rel="stylesheet" href="Style.css">
 </head>
 <body>
-  <div class="app-container">
+  <div class="app">
     <header class="header">
-      <h1>Diary Planner Layout Builder</h1>
+      <div class="header-brand">
+        <span class="logo">🌈</span>
+        <h1>동그라미 일정표 만들기</h1>
+      </div>
       <div class="header-actions">
-        <button id="undoBtn" class="btn btn-secondary">↩ Undo</button>
-        <button id="redoBtn" class="btn btn-secondary">↪ Redo</button>
+        <button id="printBtn" class="btn btn-outline">🖨️ 인쇄</button>
+        <button id="downloadBtn" class="btn btn-primary">💾 저장</button>
       </div>
     </header>
 
-    <div class="main-container">
-      <aside class="sidebar sidebar-left">
-        <div class="sidebar-header">
-          <h2>Layout</h2>
-          <button id="addRowBtn" class="btn btn-primary btn-sm">+ Row</button>
+    <div class="workspace">
+      <!-- Left Sidebar -->
+      <aside class="sidebar left-sidebar">
+
+        <div class="panel">
+          <div class="panel-title">📝 기본 정보</div>
+          <div class="field-group">
+            <label class="field-label">제목</label>
+            <input class="field-input" id="inputTitle" type="text" placeholder="예) 여름방학 일과표" value="나의 방학 일정표">
+          </div>
+          <div class="field-group">
+            <label class="field-label">날짜 / 기간</label>
+            <input class="field-input" id="inputDate" type="text" placeholder="예) 2025년 여름방학" value="2025년 여름방학">
+          </div>
+          <div class="field-group">
+            <label class="field-label">이름</label>
+            <input class="field-input" id="inputName" type="text" placeholder="예) 홍길동">
+          </div>
         </div>
-        <div id="rowList" class="row-list"></div>
+
+        <div class="panel">
+          <div class="panel-title">⚙️ 칸 수</div>
+          <div class="seg-count-group">
+            <button class="seg-btn" data-count="6">6칸</button>
+            <button class="seg-btn" data-count="8">8칸</button>
+            <button class="seg-btn active" data-count="12">12칸</button>
+            <button class="seg-btn" data-count="16">16칸</button>
+            <button class="seg-btn" data-count="24">24칸</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🎨 색상 테마</div>
+          <div class="theme-group">
+            <button class="theme-btn active" data-theme="pastel">🌸 파스텔</button>
+            <button class="theme-btn" data-theme="vivid">🌈 비비드</button>
+            <button class="theme-btn" data-theme="ocean">🌊 바다</button>
+            <button class="theme-btn" data-theme="forest">🌿 숲</button>
+            <button class="theme-btn" data-theme="sunset">🌅 노을</button>
+            <button class="theme-btn" data-theme="candy">🍭 캔디</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <button class="btn btn-reset" id="resetBtn">🔄 처음으로 초기화</button>
+        </div>
+
       </aside>
 
+      <!-- Center Canvas -->
       <main class="canvas-area">
-        <div class="canvas-controls">
-          <div class="control-group">
-            <label>Paper Size</label>
-            <select id="paperSize">
-              <option value="a4">A4 (210x297mm)</option>
-              <option value="letter">Letter (8.5x11in)</option>
-              <option value="tablet">Tablet (1024x1366px)</option>
-            </select>
-          </div>
-          <div class="control-group">
-            <label>Orientation</label>
-            <select id="orientation">
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
-            </select>
-          </div>
+        <div class="planner-wrapper">
+          <svg id="planner" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
-        <div id="canvasContainer" class="canvas-container"></div>
+        <div class="canvas-hint">💡 원 안의 칸을 클릭하면 내용을 수정할 수 있어요!</div>
       </main>
 
-      <aside class="sidebar sidebar-right">
-        <h2>Properties</h2>
-        <div id="propertyPanel" class="property-panel"></div>
+      <!-- Right Sidebar -->
+      <aside class="sidebar right-sidebar">
+        <div id="editorPanel" class="panel editor-panel">
+          <div class="panel-title">✏️ 칸 수정하기</div>
+          <div class="editor-empty">
+            <div class="editor-empty-icon">👆</div>
+            <p>원 안의 칸을 클릭해서<br>내용을 수정해보세요!</p>
+          </div>
+        </div>
       </aside>
     </div>
   </div>
