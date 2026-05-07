@@ -35,6 +35,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── App container: centered column ── */
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--surface);
+  position: relative;
+}
+
+@media (min-width: 481px) {
+  body { background: #EDEDF0; }
+  .app { box-shadow: 0 0 0 1px var(--border), 0 8px 40px rgba(0,0,0,0.08); }
+}
+
 /* ── Header ── */
 .header {
   height: var(--header-h);
@@ -46,6 +60,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 200;
+  /* keeps header within .app column */
+  width: 100%;
 }
 
 .header-brand { display: flex; align-items: center; gap: 10px; }
@@ -115,11 +131,46 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 8px;
 }
+
+.tl-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.snap-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.snap-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.3px;
+}
+
+.snap-select {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.snap-select:focus { outline: none; border-color: var(--accent); }
 
 .tl-date-label {
   font-size: 13px;
@@ -291,6 +342,27 @@ body {
 .tl-block-todo.done .tl-check {
   background: var(--text-3);
   border-color: var(--text-3);
+}
+
+/* Drag preview block */
+.tl-block-preview {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  background: rgba(233, 30, 140, 0.08);
+  border: 2px dashed var(--accent);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  pointer-events: none;
+  z-index: 9;
+  user-select: none;
+  min-height: 24px;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -866,7 +938,11 @@ body {
 
   .tab-bar {
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    bottom: 0;
+    /* center within the app max-width */
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(480px, 100%);
     top: auto;
     border-top: 1px solid var(--border);
     border-bottom: none;
