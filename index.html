@@ -55,7 +55,23 @@
         </div>
       </div>
 
-      <!-- Block editor sheet -->
+      <!-- Quick-add popup (after drag / click) -->
+      <div id="quickPopup" class="quick-popup hidden">
+        <div class="qp-header">
+          <span class="qp-color-dot" id="qpColorDot"></span>
+          <span class="qp-time" id="qpTime"></span>
+        </div>
+        <input id="qpInput" class="qp-input" placeholder="블록 이름...">
+        <div class="qp-actions">
+          <button class="qp-detail" id="qpDetail">상세 편집</button>
+          <div class="qp-right">
+            <button class="qp-cancel" id="qpCancel">취소</button>
+            <button class="qp-save" id="qpSave">저장</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full block editor sheet (double-click) -->
       <div id="blockSheet" class="sheet hidden">
         <div class="sheet-backdrop" id="blockBackdrop"></div>
         <div class="sheet-panel">

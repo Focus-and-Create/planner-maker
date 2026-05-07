@@ -66,8 +66,14 @@ let selectedBlockColor = BLOCK_COLORS[0];
 let editingBlockTodos = [];
 let snapMin = 10;
 let pointerDrag = null;
+let quickBlockId = null;
+let blockClickTimer = null;
 
 function saveBlocks() { saveData('haru_blocks', timeBlocks); }
+
+function randomBlockColor() {
+  return BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+}
 
 function snapToGrid(minutes) {
   return Math.round(minutes / snapMin) * snapMin;
@@ -120,8 +126,87 @@ function handlePointerUp(e) {
   preview.remove();
   pointerDrag = null;
 
-  const durationM = endMin - startMin;
-  openAddBlock(Math.floor(startMin / 60), startMin % 60, durationM);
+  const durationM = Math.max(snapMin, endMin - startMin);
+  const color = randomBlockColor();
+  const id = uid();
+  timeBlocks.push({
+    id, date: dateStr(),
+    label: '',
+    startH: Math.floor(startMin / 60),
+    startM: startMin % 60,
+    durationM, color, todos: [],
+  });
+  saveBlocks();
+  renderTimeline();
+  showQuickPopup(id);
+}
+
+// ── Quick popup ──────────────────────────────────────────────────────────────
+function showQuickPopup(blockId) {
+  const block = timeBlocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  const end = blockEndTime(block);
+  document.getElementById('qpTime').textContent =
+    `${fmtTime(block.startH, block.startM)} – ${fmtTime(end.h, end.m)}`;
+  document.getElementById('qpColorDot').style.background = block.color.border;
+  document.getElementById('qpInput').value = block.label || '';
+
+  // Position near the block in the viewport
+  const inner  = document.getElementById('tlInner');
+  const scroll = document.getElementById('tlScroll');
+  const iRect  = inner.getBoundingClientRect();
+  const blockTopPx = (block.startH * 60 + block.startM) * PX_PER_MIN;
+  const blockMidVh = iRect.top + blockTopPx + (block.durationM * PX_PER_MIN) / 2;
+  const clampedTop = Math.max(80, Math.min(window.innerHeight - 140, blockMidVh - 50));
+
+  const popup = document.getElementById('quickPopup');
+  popup.style.top = clampedTop + 'px';
+  quickBlockId = blockId;
+  popup.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    popup.classList.add('visible');
+    document.getElementById('qpInput').focus();
+  });
+}
+
+function saveQuickPopup() {
+  if (!quickBlockId) return;
+  const block = timeBlocks.find(b => b.id === quickBlockId);
+  const name = document.getElementById('qpInput').value.trim();
+  if (block) {
+    block.label = name || '새 블록';
+    saveBlocks();
+  }
+  closeQuickPopup(false);
+  renderTimeline();
+}
+
+function closeQuickPopup(deleteIfEmpty = true) {
+  const popup = document.getElementById('quickPopup');
+  popup.classList.remove('visible');
+  setTimeout(() => popup.classList.add('hidden'), 200);
+
+  if (deleteIfEmpty && quickBlockId) {
+    const block = timeBlocks.find(b => b.id === quickBlockId);
+    if (block && !block.label) {
+      timeBlocks = timeBlocks.filter(b => b.id !== quickBlockId);
+      saveBlocks();
+      renderTimeline();
+    }
+  }
+  quickBlockId = null;
+}
+
+// ── Block click / dblclick ───────────────────────────────────────────────────
+function handleBlockClick(id) {
+  clearTimeout(blockClickTimer);
+  blockClickTimer = setTimeout(() => showQuickPopup(id), 220);
+}
+
+function handleBlockDblClick(id) {
+  clearTimeout(blockClickTimer);
+  openEditBlock(id);
 }
 
 function blockEndTime(b) {
@@ -175,7 +260,10 @@ function renderTimeline() {
 
     html += `
       <div class="tl-block" style="top:${topPx}px;height:${heightPx}px;background:${b.color.bg};border-left-color:${b.color.border}"
-           data-id="${b.id}" onclick="openEditBlock('${b.id}')">
+           data-id="${b.id}"
+           onclick="handleBlockClick('${b.id}')"
+           ondblclick="handleBlockDblClick('${b.id}')"
+      >
         <div class="tl-block-content">
           <div class="tl-block-row">
             <span class="tl-block-label">${escapeHtml(b.label)}</span>
@@ -624,6 +712,23 @@ function init() {
   document.getElementById('addBlockBtn').addEventListener('click', () => {
     const now = new Date();
     openAddBlock(now.getHours(), Math.floor(now.getMinutes() / 15) * 15);
+  });
+
+  // Quick popup
+  document.getElementById('qpSave').addEventListener('click', saveQuickPopup);
+  document.getElementById('qpCancel').addEventListener('click', () => closeQuickPopup(true));
+  document.getElementById('qpDetail').addEventListener('click', () => {
+    const id = quickBlockId;
+    closeQuickPopup(false);
+    if (id) openEditBlock(id);
+  });
+  document.getElementById('qpInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveQuickPopup();
+    if (e.key === 'Escape') closeQuickPopup(true);
+  });
+  // Click outside quick popup to cancel
+  document.addEventListener('pointerdown', e => {
+    if (quickBlockId && !e.target.closest('#quickPopup')) closeQuickPopup(true);
   });
 
   document.getElementById('blockSaveBtn').addEventListener('click', saveBlock);
