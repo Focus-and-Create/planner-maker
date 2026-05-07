@@ -1,980 +1,462 @@
-const BLOCK_LABELS = {
-  schedule: 'Schedule',
-  todo: 'To-Do',
-  memo: 'Memo',
-  goal: 'Goal',
-  habit: 'Habit Tracker',
-  'time-log': 'Time Log',
-  emotion: 'Emotion',
-  empty: 'Empty',
+// ── SVG geometry constants ──────────────────────────────────────────────────
+const CX = 250, CY = 250;
+const CENTER_R  = 72;   // inner title circle
+const SEG_INNER = 79;   // segment ring inner edge
+const SEG_OUTER = 208;  // segment ring outer edge
+const TICK_R    = 211;  // tick marks
+const LABEL_R   = 221;  // time labels
+
+// ── Color palettes ──────────────────────────────────────────────────────────
+const PALETTES = {
+  pastel: [
+    '#FFB3C6','#FFCBA4','#FFF099','#B5F2C8','#B3D9FF',
+    '#D5B8FF','#FFB3D9','#A8F0E8','#FFC8A0','#D0F0A8',
+    '#F0C0F0','#A8D8FF','#FFD0A0','#B8FFD8','#F0B0D0',
+    '#C8D0FF','#FFE0B8','#A8EED8','#FFB8C8','#D8B8FF',
+    '#B8F8C8','#FFD8A8','#C8F0FF','#F8C8F0',
+  ],
+  vivid: [
+    '#FF6B6B','#FF8C42','#FFC857','#4ECDC4','#45B7D1',
+    '#96E6A1','#F9CA24','#F0932B','#EB4D4B','#6AB04C',
+    '#E056DA','#686DE0','#48DBFB','#22A6B3','#BE2EDD',
+    '#F9CA24','#FF9FF3','#00D2D3','#FF6348','#7BED9F',
+    '#70A1FF','#5F27CD','#01ABC6','#FF4D4D',
+  ],
+  ocean: [
+    '#74B9FF','#A29BFE','#81ECEC','#55EFC4','#00B894',
+    '#0984E3','#6C5CE7','#00CEC9','#BADC58','#7ED6DF',
+    '#22A6B3','#7FDBFF','#01CBC6','#1289A7','#C4E538',
+    '#009432','#12CBC4','#FDA7DF','#9980FA','#C4E538',
+    '#5758BB','#D980FA','#1289A7','#3D9970',
+  ],
+  forest: [
+    '#55EFC4','#00B894','#BADC58','#6AB04C','#1DD1A1',
+    '#A3CB38','#009432','#C4E538','#33D9B2','#F7DC6F',
+    '#82E0AA','#AED6F1','#A569BD','#FAD7A0','#F9E79F',
+    '#A8D8EA','#B5E8A0','#D4EFDF','#D7BDE2','#D2B4DE',
+    '#AED6F1','#A9DFBF','#FDEBD0','#ABE0B8',
+  ],
+  sunset: [
+    '#FF6B9D','#FF9A8B','#FFC3A0','#FFD1A4','#FFECB3',
+    '#FFA3A3','#FF8B94','#FFAAA5','#FFB3BA','#FFD6BA',
+    '#FFC8A2','#FF9F85','#FF7675','#FD79A8','#FDCB6E',
+    '#E17055','#FAB1A0','#F19066','#F8A5C2','#F5CD79',
+    '#FDA7DF','#E77F67','#CF6A87','#D6A2E8',
+  ],
+  candy: [
+    '#FF85A2','#FFB347','#FFD700','#98FF98','#87CEEB',
+    '#DDA0DD','#FF7F50','#20B2AA','#FF69B4','#32CD32',
+    '#FF6347','#9370DB','#00FA9A','#FF4500','#DA70D6',
+    '#ADFF2F','#FF8C00','#7B68EE','#00CED1','#DC143C',
+    '#FF1493','#00FF7F','#FFA500','#4169E1',
+  ],
 };
 
-const BLOCK_ICONS = {
-  schedule: 'S',
-  todo: 'T',
-  memo: 'M',
-  goal: 'G',
-  habit: 'H',
-  'time-log': 'L',
-  emotion: 'E',
-  empty: '-',
+// ── Emoji set ───────────────────────────────────────────────────────────────
+const EMOJIS = [
+  '🌅','🌙','⭐','🌞','🌈','🌸','🌿','🍀',
+  '🍳','🥣','🥞','🍱','🍜','🍕','🍎','🥗',
+  '📚','✏️','📖','🔬','🔢','🌍','💻','📝',
+  '🏃','⚽','🏊','🚴','🤸','🏋️','🚶','🧘',
+  '🎮','🎵','🎨','🎭','📺','🎯','🎸','🎪',
+  '🛁','🧼','😴','☕','💆','🌺','🦋','🐱',
+  '🎒','🎀','🌟','💫','🍦','🧁','🍩','🎁',
+];
+
+// ── Default segment templates ────────────────────────────────────────────────
+const TEMPLATES = {
+  6: [
+    { label:'아침',      emoji:'🌅', time:'06:00' },
+    { label:'오전 공부', emoji:'📚', time:'09:00' },
+    { label:'점심',      emoji:'🍱', time:'12:00' },
+    { label:'오후 활동', emoji:'⚽', time:'14:00' },
+    { label:'저녁',      emoji:'🍜', time:'18:00' },
+    { label:'취침',      emoji:'🌙', time:'21:00' },
+  ],
+  8: [
+    { label:'기상',      emoji:'🌅', time:'06:00' },
+    { label:'아침식사',  emoji:'🍳', time:'07:30' },
+    { label:'오전 공부', emoji:'📚', time:'09:00' },
+    { label:'점심',      emoji:'🍱', time:'12:00' },
+    { label:'오후 공부', emoji:'✏️', time:'13:30' },
+    { label:'운동',      emoji:'⚽', time:'16:00' },
+    { label:'저녁식사',  emoji:'🍜', time:'18:00' },
+    { label:'취침',      emoji:'🌙', time:'21:00' },
+  ],
+  12: [
+    { label:'기상',      emoji:'🌅', time:'06:00' },
+    { label:'아침준비',  emoji:'🧼', time:'07:00' },
+    { label:'아침식사',  emoji:'🍳', time:'08:00' },
+    { label:'공부',      emoji:'📚', time:'09:00' },
+    { label:'휴식',      emoji:'☕', time:'10:30' },
+    { label:'공부',      emoji:'✏️', time:'11:00' },
+    { label:'점심식사',  emoji:'🍱', time:'12:00' },
+    { label:'낮잠',      emoji:'😴', time:'13:00' },
+    { label:'운동',      emoji:'⚽', time:'14:00' },
+    { label:'자유시간',  emoji:'🎮', time:'16:00' },
+    { label:'저녁식사',  emoji:'🍜', time:'18:00' },
+    { label:'취침준비',  emoji:'🌙', time:'21:00' },
+  ],
+  16: [
+    { label:'기상',      emoji:'🌅', time:'06:00' },
+    { label:'씻기',      emoji:'🧼', time:'06:30' },
+    { label:'아침',      emoji:'🍳', time:'07:00' },
+    { label:'준비',      emoji:'🎒', time:'08:00' },
+    { label:'공부',      emoji:'📚', time:'09:00' },
+    { label:'공부',      emoji:'✏️', time:'10:00' },
+    { label:'휴식',      emoji:'☕', time:'11:00' },
+    { label:'공부',      emoji:'📖', time:'11:30' },
+    { label:'점심',      emoji:'🍱', time:'12:00' },
+    { label:'낮잠',      emoji:'😴', time:'13:00' },
+    { label:'공부',      emoji:'🔬', time:'14:00' },
+    { label:'운동',      emoji:'⚽', time:'15:30' },
+    { label:'독서',      emoji:'📖', time:'16:30' },
+    { label:'저녁',      emoji:'🍜', time:'18:00' },
+    { label:'자유',      emoji:'🎮', time:'19:00' },
+    { label:'취침',      emoji:'🌙', time:'21:00' },
+  ],
+  24: [
+    { label:'취침', emoji:'🌙', time:'00:00' },
+    { label:'취침', emoji:'😴', time:'01:00' },
+    { label:'취침', emoji:'💤', time:'02:00' },
+    { label:'취침', emoji:'🛌', time:'03:00' },
+    { label:'취침', emoji:'⭐', time:'04:00' },
+    { label:'취침', emoji:'🌠', time:'05:00' },
+    { label:'기상', emoji:'🌅', time:'06:00' },
+    { label:'씻기', emoji:'🧼', time:'07:00' },
+    { label:'아침', emoji:'🍳', time:'08:00' },
+    { label:'공부', emoji:'📚', time:'09:00' },
+    { label:'공부', emoji:'✏️', time:'10:00' },
+    { label:'휴식', emoji:'☕', time:'11:00' },
+    { label:'점심', emoji:'🍱', time:'12:00' },
+    { label:'낮잠', emoji:'😴', time:'13:00' },
+    { label:'공부', emoji:'📖', time:'14:00' },
+    { label:'운동', emoji:'⚽', time:'15:00' },
+    { label:'독서', emoji:'📖', time:'16:00' },
+    { label:'자유', emoji:'🎮', time:'17:00' },
+    { label:'저녁', emoji:'🍜', time:'18:00' },
+    { label:'자유', emoji:'📺', time:'19:00' },
+    { label:'씻기', emoji:'🛁', time:'20:00' },
+    { label:'준비', emoji:'🌙', time:'21:00' },
+    { label:'독서', emoji:'📖', time:'22:00' },
+    { label:'취침', emoji:'😴', time:'23:00' },
+  ],
 };
 
-const BLOCK_TYPES = Object.keys(BLOCK_LABELS);
+// ── App state ────────────────────────────────────────────────────────────────
+const state = {
+  title:    '나의 방학 일정표',
+  date:     '2025년 여름방학',
+  name:     '',
+  count:    12,
+  theme:    'pastel',
+  segments: [],
+  selected: null,
+};
 
-// 레이아웃 데이터 클래스
-class LayoutData {
-  constructor() {
-    this.rows = [];
-    this.selected = null; // { type: 'row' | 'block', rowId, blockId? }
-    this.history = [];
-    this.historyIndex = -1;
-    this.listeners = [];
-    this.init();
-  }
-
-  init() {
-    this.loadDefaultTemplate();
-  }
-
-  loadDefaultTemplate() {
-    // Row 1: 날짜 헤더 (10%)
-    const headerRow = {
-      id: this.generateId(),
-      height: 0.08,
-      blocks: [
-        {
-          id: this.generateId(),
-          type: 'memo',
-          label: 'Date',
-          width: 0.6,
-          showLabel: false
-        },
-        {
-          id: this.generateId(),
-          type: 'emotion',
-          label: 'Mood',
-          width: 0.4,
-          showLabel: false
-        }
-      ]
-    };
-
-    // Row 2: 메인 컨텐츠 (60%)
-    const mainRow = {
-      id: this.generateId(),
-      height: 0.62,
-      blocks: [
-        {
-          id: this.generateId(),
-          type: 'schedule',
-          label: 'Time Schedule',
-          width: 0.5,
-          showLabel: false
-        },
-        {
-          id: this.generateId(),
-          type: 'todo',
-          label: 'To-Do List',
-          width: 0.5,
-          showLabel: false
-        }
-      ]
-    };
-
-    // Row 3: 목표 & 습관 (20%)
-    const goalRow = {
-      id: this.generateId(),
-      height: 0.2,
-      blocks: [
-        {
-          id: this.generateId(),
-          type: 'goal',
-          label: 'Daily Goal',
-          width: 0.5,
-          showLabel: false
-        },
-        {
-          id: this.generateId(),
-          type: 'habit',
-          label: 'Habit Tracker',
-          width: 0.5,
-          showLabel: false
-        }
-      ]
-    };
-
-    // Row 4: 메모 (10%)
-    const memoRow = {
-      id: this.generateId(),
-      height: 0.1,
-      blocks: [
-        {
-          id: this.generateId(),
-          type: 'memo',
-          label: 'Notes',
-          width: 1.0,
-          showLabel: false
-        }
-      ]
-    };
-
-    this.rows = [headerRow, mainRow, goalRow, memoRow];
-    this.selected = { type: 'row', rowId: headerRow.id };
-  }
-
-  resetTemplate() {
-    this.loadDefaultTemplate();
-    this.saveToHistory();
-  }
-
-  generateId() {
-    return Math.random().toString(36).substr(2, 9);
-  }
-
-  addRow() {
-    const newRow = {
-      id: this.generateId(),
-      height: 1,
-      blocks: []
-    };
-    this.rows.push(newRow);
-    this.normalizeRowHeights();
-    this.selected = { type: 'row', rowId: newRow.id };
-    this.saveToHistory();
-  }
-
-  deleteRow(rowId) {
-    if (this.rows.length <= 1) {
-      alert('At least 1 row required!');
-      return;
-    }
-    this.rows = this.rows.filter(r => r.id !== rowId);
-    this.normalizeRowHeights();
-    this.selected = { type: 'row', rowId: this.rows[0].id };
-    this.saveToHistory();
-  }
-
-  normalizeRowHeights() {
-    const total = this.rows.reduce((sum, r) => sum + r.height, 0);
-    if (total > 0) {
-      this.rows.forEach(r => r.height = r.height / total);
-    } else {
-      const h = 1 / this.rows.length;
-      this.rows.forEach(r => r.height = h);
-    }
-  }
-
-  updateRowHeight(rowId, newHeight, nextRowId = null) {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row) return;
-    
-    // nextRowId가 있으면 두 row 사이에서만 조절
-    if (nextRowId) {
-      const nextRow = this.rows.find(r => r.id === nextRowId);
-      if (!nextRow) return;
-      
-      const totalHeight = row.height + nextRow.height;
-      newHeight = Math.max(0.05, Math.min(totalHeight - 0.05, newHeight));
-      
-      const oldHeight = row.height;
-      const diff = newHeight - oldHeight;
-      
-      row.height = newHeight;
-      nextRow.height = totalHeight - newHeight;
-      
-      this.notifyListeners();
-    } else {
-      // 기존 방식 (모든 row에 분배)
-      newHeight = Math.round(newHeight * 10) / 10;
-      newHeight = Math.max(0.1, Math.min(0.9, newHeight));
-      
-      const oldHeight = row.height;
-      const diff = newHeight - oldHeight;
-      
-      row.height = newHeight;
-      
-      const others = this.rows.filter(r => r.id !== rowId);
-      const totalOther = others.reduce((sum, r) => sum + r.height, 0);
-      
-      if (totalOther > 0) {
-        others.forEach(r => {
-          r.height = Math.max(0.1, r.height - diff * (r.height / totalOther));
-        });
-      }
-      
-      this.normalizeRowHeights();
-      this.notifyListeners();
-    }
-  }
-
-  addBlock(rowId, type = 'empty') {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row) return;
-
-    const newBlock = {
-      id: this.generateId(),
-      type: type,
-      label: BLOCK_LABELS[type],
-      width: 1,
-      showLabel: false
-    };
-    
-    row.blocks.push(newBlock);
-    this.normalizeBlockWidths(rowId);
-    this.selected = { type: 'block', rowId, blockId: newBlock.id };
-    this.saveToHistory();
-  }
-
-  deleteBlock(rowId, blockId) {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row) return;
-
-    row.blocks = row.blocks.filter(b => b.id !== blockId);
-    this.normalizeBlockWidths(rowId);
-    
-    if (row.blocks.length > 0) {
-      this.selected = { type: 'block', rowId, blockId: row.blocks[0].id };
-    } else {
-      this.selected = { type: 'row', rowId };
-    }
-    this.saveToHistory();
-  }
-
-  normalizeBlockWidths(rowId) {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row || row.blocks.length === 0) return;
-
-    const total = row.blocks.reduce((sum, b) => sum + b.width, 0);
-    if (total > 0) {
-      row.blocks.forEach(b => b.width = b.width / total);
-    } else {
-      const w = 1 / row.blocks.length;
-      row.blocks.forEach(b => b.width = w);
-    }
-  }
-
-  updateBlockWidth(rowId, blockId, newWidth, nextBlockId = null) {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row) return;
-    
-    const block = row.blocks.find(b => b.id === blockId);
-    if (!block) return;
-
-    // nextBlockId가 있으면 두 블록 사이에서만 조절
-    if (nextBlockId) {
-      const nextBlock = row.blocks.find(b => b.id === nextBlockId);
-      if (!nextBlock) return;
-      
-      const totalWidth = block.width + nextBlock.width;
-      newWidth = Math.max(0.05, Math.min(totalWidth - 0.05, newWidth));
-      
-      const oldWidth = block.width;
-      const diff = newWidth - oldWidth;
-      
-      block.width = newWidth;
-      nextBlock.width = totalWidth - newWidth;
-      
-      this.notifyListeners();
-    } else {
-      // 기존 방식 (모든 블록에 분배)
-      newWidth = Math.round(newWidth * 10) / 10;
-      newWidth = Math.max(0.1, Math.min(0.9, newWidth));
-      
-      const oldWidth = block.width;
-      const diff = newWidth - oldWidth;
-      
-      block.width = newWidth;
-      
-      const others = row.blocks.filter(b => b.id !== blockId);
-      const totalOther = others.reduce((sum, b) => sum + b.width, 0);
-      
-      if (totalOther > 0) {
-        others.forEach(b => {
-          b.width = Math.max(0.1, b.width - diff * (b.width / totalOther));
-        });
-      }
-      
-      this.normalizeBlockWidths(rowId);
-      this.notifyListeners();
-    }
-  }
-
-  updateBlock(rowId, blockId, updates, saveHistory = true) {
-    const row = this.rows.find(r => r.id === rowId);
-    if (!row) return;
-    
-    const block = row.blocks.find(b => b.id === blockId);
-    if (!block) return;
-
-    if (updates.type && updates.type !== block.type) {
-      block.type = updates.type;
-      if (!updates.label) {
-        block.label = BLOCK_LABELS[updates.type];
-      }
-    }
-    
-    Object.assign(block, updates);
-    if (saveHistory) {
-      this.saveToHistory();
-    } else {
-      this.notifyListeners();
-    }
-  }
-
-  select(type, rowId, blockId = null) {
-    if (type === 'row') {
-      this.selected = { type: 'row', rowId };
-    } else {
-      this.selected = { type: 'block', rowId, blockId };
-    }
-    this.notifyListeners();
-  }
-
-  getSelectedRow() {
-    if (!this.selected) return null;
-    return this.rows.find(r => r.id === this.selected.rowId);
-  }
-
-  getSelectedBlock() {
-    if (!this.selected || this.selected.type !== 'block') return null;
-    const row = this.getSelectedRow();
-    if (!row) return null;
-    return row.blocks.find(b => b.id === this.selected.blockId);
-  }
-
-  saveToHistory() {
-    const state = JSON.parse(JSON.stringify({ rows: this.rows, selected: this.selected }));
-    const newHistory = this.history.slice(0, this.historyIndex + 1);
-    newHistory.push(state);
-    
-    if (newHistory.length > 50) {
-      newHistory.shift();
-    } else {
-      this.historyIndex++;
-    }
-    
-    this.history = newHistory;
-    this.notifyListeners();
-  }
-
-  undo() {
-    if (this.canUndo()) {
-      this.historyIndex--;
-      const state = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-      this.rows = state.rows;
-      this.selected = state.selected;
-      this.notifyListeners();
-    }
-  }
-
-  redo() {
-    if (this.canRedo()) {
-      this.historyIndex++;
-      const state = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-      this.rows = state.rows;
-      this.selected = state.selected;
-      this.notifyListeners();
-    }
-  }
-
-  canUndo() { return this.historyIndex > 0; }
-  canRedo() { return this.historyIndex < this.history.length - 1; }
-
-  subscribe(listener) { this.listeners.push(listener); }
-  notifyListeners() { this.listeners.forEach(l => l()); }
+function buildSegments(count, theme) {
+  const palette = PALETTES[theme];
+  return TEMPLATES[count].map((t, i) => ({
+    label: t.label,
+    emoji: t.emoji,
+    time:  t.time,
+    color: palette[i % palette.length],
+  }));
 }
 
-// UI 클래스
-class UI {
-  constructor(data) {
-    this.data = data;
-    this.isDragging = false;
-    this.dragType = null;
-    this.dragTargetId = null;
-    this.dragColumnId = null;
-    this.dragStartPos = 0;
-    this.dragStartSize = 0;
-    this.dragContainerSize = 0;
-    this.activeSeparator = null;
-    this.init();
-  }
+// ── SVG helpers ──────────────────────────────────────────────────────────────
+function toXY(r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return [CX + r * Math.cos(rad), CY + r * Math.sin(rad)];
+}
 
-  init() {
-    this.data.subscribe(() => this.render());
-    this.setupEventListeners();
-    this.setupGlobalDragHandlers();
-    this.render();
-  }
+function arcPath(iR, oR, sDeg, eDeg) {
+  const [x0, y0] = toXY(iR, sDeg);
+  const [x1, y1] = toXY(oR, sDeg);
+  const [x2, y2] = toXY(oR, eDeg);
+  const [x3, y3] = toXY(iR, eDeg);
+  const la = (eDeg - sDeg) > 180 ? 1 : 0;
+  return `M${x0},${y0}L${x1},${y1}A${oR},${oR} 0 ${la},1 ${x2},${y2}L${x3},${y3}A${iR},${iR} 0 ${la},0 ${x0},${y0}Z`;
+}
 
-  setupEventListeners() {
-    document.getElementById('undoBtn').addEventListener('click', () => this.data.undo());
-    document.getElementById('redoBtn').addEventListener('click', () => this.data.redo());
-    document.getElementById('paperSize').addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('orientation').addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('addRowBtn').addEventListener('click', () => this.data.addRow());
-  }
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
-  setupGlobalDragHandlers() {
-    window.addEventListener('mousemove', (e) => {
-      if (!this.isDragging) return;
-      
-      const currentPos = this.dragType === 'row' ? e.clientY : e.clientX;
-      const delta = currentPos - this.dragStartPos;
-      const percentDelta = delta / this.dragContainerSize;
-      const newSize = this.dragStartSize + percentDelta;
-      
-      if (this.dragType === 'row') {
-        this.data.updateRowHeight(this.dragTargetId, newSize, this.dragNextRowId);
-      } else {
-        this.data.updateBlockWidth(this.dragRowId, this.dragTargetId, newSize, this.dragNextBlockId);
-      }
-    });
+// ── SVG render ───────────────────────────────────────────────────────────────
+function renderSVG() {
+  const { count, segments, selected, title, date, name } = state;
+  const deg = 360 / count;
 
-    window.addEventListener('mouseup', () => {
-      if (!this.isDragging) return;
-      
-      this.isDragging = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      
-      if (this.activeSeparator) {
-        this.activeSeparator.classList.remove('active');
-        this.activeSeparator = null;
-      }
-      
-      this.data.saveToHistory();
-    });
-  }
+  // Sizing by count
+  const emojiSz  = count <= 6 ? 24 : count <= 8 ? 20 : count <= 12 ? 16 : count <= 16 ? 12 : 9;
+  const labelSz  = count <= 8 ? 12 : count <= 12 ? 10.5 : count <= 16 ? 8.5 : 0;
+  const showLabel = count <= 16;
 
-  updateCanvasSize() {
-    const paperSize = document.getElementById('paperSize').value;
-    const orientation = document.getElementById('orientation').value;
-    const canvas = document.getElementById('canvasContainer');
-    
-    let width, height;
-    
-    // A4 = 210x297mm, 비율 = 1:1.414
-    switch (paperSize) {
-      case 'a4': 
-        width = 420; 
-        height = 594; // 420 * 1.414
-        break;
-      case 'letter': 
-        width = 425; 
-        height = 550; // 8.5:11 비율
-        break;
-      case 'tablet': 
-        width = 512; 
-        height = 683; // 3:4 비율
-        break;
-      default: 
-        width = 420; 
-        height = 594;
-    }
-    
-    if (orientation === 'landscape') {
-      [width, height] = [height, width];
-    }
-    
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-  }
+  const midR = SEG_INNER + (SEG_OUTER - SEG_INNER) * 0.5;
+  const font = "'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif";
 
-  render() {
-    const activeEl = document.activeElement;
-    const activeId = activeEl?.id;
-    const selectionStart = activeEl?.selectionStart;
-    const selectionEnd = activeEl?.selectionEnd;
-    
-    this.updateButtons();
-    this.renderRowList();
-    this.renderCanvas();
-    this.renderPropertyPanel();
-    
-    // 포커스 복원
-    if (activeId) {
-      const el = document.getElementById(activeId);
-      if (el) {
-        el.focus();
-        if (typeof selectionStart === 'number') {
-          el.setSelectionRange(selectionStart, selectionEnd);
-        }
-      }
-    }
-  }
+  let s = '';
 
-  updateButtons() {
-    document.getElementById('undoBtn').disabled = !this.data.canUndo();
-    document.getElementById('redoBtn').disabled = !this.data.canRedo();
-  }
+  // Outer ring background
+  s += `<circle cx="${CX}" cy="${CY}" r="${LABEL_R + 8}" fill="#f8eef4"/>`;
 
-  renderRowList() {
-    const container = document.getElementById('rowList');
-    container.innerHTML = '';
+  // Segments
+  segments.forEach((seg, i) => {
+    const sDeg = i * deg;
+    const eDeg = sDeg + deg;
+    const mDeg = sDeg + deg / 2;
+    const [tx, ty] = toXY(midR, mDeg);
 
-    this.data.rows.forEach((row, rowIndex) => {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'row-item';
-      
-      const rowHeader = document.createElement('div');
-      rowHeader.className = `row-header ${this.data.selected?.type === 'row' && this.data.selected?.rowId === row.id ? 'selected' : ''}`;
-      rowHeader.innerHTML = `
-        <span class="row-icon">—</span>
-        <span class="row-label">Row ${rowIndex + 1}</span>
-        <span class="row-height">${(row.height * 100).toFixed(0)}%</span>
-      `;
-      rowHeader.addEventListener('click', () => {
-        this.data.select('row', row.id);
-      });
-      rowEl.appendChild(rowHeader);
+    const isSel = selected === i;
+    s += `<path d="${arcPath(SEG_INNER, SEG_OUTER, sDeg, eDeg)}"
+      fill="${escapeXml(seg.color)}"
+      stroke="${isSel ? '#333' : 'white'}"
+      stroke-width="${isSel ? 3 : 1.5}"
+      class="seg-path"
+      data-idx="${i}"
+      onclick="selectSeg(${i})"/>`;
 
-      if (row.blocks.length > 0) {
-        const blockList = document.createElement('div');
-        blockList.className = 'block-list';
-        
-        row.blocks.forEach((block) => {
-          const blockEl = document.createElement('div');
-          blockEl.className = `block-item ${this.data.selected?.type === 'block' && this.data.selected?.blockId === block.id ? 'selected' : ''}`;
-          blockEl.innerHTML = `
-            <span class="block-label">${block.label}</span>
-            <span class="block-width">${(block.width * 100).toFixed(0)}%</span>
-          `;
-          blockEl.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.data.select('block', row.id, block.id);
-          });
-          blockList.appendChild(blockEl);
-        });
-        
-        rowEl.appendChild(blockList);
-      }
+    // Emoji
+    const emojiY = showLabel && labelSz > 0 ? ty - emojiSz * 0.44 : ty;
+    s += `<text x="${tx}" y="${emojiY}"
+      text-anchor="middle" dominant-baseline="middle"
+      font-size="${emojiSz}" style="pointer-events:none;user-select:none">${seg.emoji}</text>`;
 
-      container.appendChild(rowEl);
-    });
-  }
-
-  renderCanvas() {
-    const canvas = document.getElementById('canvasContainer');
-    canvas.innerHTML = '';
-
-    this.data.rows.forEach((row, rowIndex) => {
-      const rowEl = document.createElement('div');
-      rowEl.className = `canvas-row ${this.data.selected?.type === 'row' && this.data.selected?.rowId === row.id ? 'selected' : ''}`;
-      rowEl.style.flex = `${row.height} 1 0%`;
-      rowEl.dataset.rowId = row.id;
-
-      if (row.blocks.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.className = 'empty-row';
-        emptyMsg.innerHTML = `<span>Row ${rowIndex + 1}</span><span class="empty-hint">Add blocks</span>`;
-        rowEl.appendChild(emptyMsg);
-        
-        rowEl.addEventListener('click', () => {
-          this.data.select('row', row.id);
-        });
-      } else {
-        row.blocks.forEach((block, blockIndex) => {
-          const blockEl = this.createBlockElement(row, block);
-          rowEl.appendChild(blockEl);
-
-          if (blockIndex < row.blocks.length - 1) {
-            const nextBlock = row.blocks[blockIndex + 1];
-            const sep = this.createBlockSeparator(row, block, nextBlock);
-            rowEl.appendChild(sep);
-          }
-        });
-      }
-
-      canvas.appendChild(rowEl);
-
-      if (rowIndex < this.data.rows.length - 1) {
-        const nextRow = this.data.rows[rowIndex + 1];
-        const sep = this.createRowSeparator(row, nextRow);
-        canvas.appendChild(sep);
-      }
-    });
-  }
-
-  createBlockElement(row, block) {
-    const el = document.createElement('div');
-    el.className = `canvas-block block-${block.type} ${this.data.selected?.type === 'block' && this.data.selected?.blockId === block.id ? 'selected' : ''}`;
-    el.style.flex = `${block.width} 1 0%`;
-    el.dataset.blockId = block.id;
-
-    // 라벨 표시 옵션
-    if (block.showLabel) {
-      const header = document.createElement('div');
-      header.className = 'block-header';
-      header.innerHTML = `<span class="block-title">${block.label}</span>`;
-      el.appendChild(header);
+    // Label
+    if (showLabel && labelSz > 0) {
+      s += `<text x="${tx}" y="${ty + emojiSz * 0.56 + 1}"
+        text-anchor="middle" dominant-baseline="hanging"
+        font-size="${labelSz}" font-family="${font}" fill="#2D1A25"
+        style="pointer-events:none;user-select:none">${escapeXml(seg.label)}</text>`;
     }
 
-    const content = document.createElement('div');
-    content.className = 'block-content';
-    content.innerHTML = this.getBlockContent(block.type);
-    el.appendChild(content);
-
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.data.select('block', row.id, block.id);
-    });
-
-    return el;
-  }
-
-  createRowSeparator(currentRow, nextRow) {
-    const sep = document.createElement('div');
-    sep.className = 'row-separator';
-    
-    sep.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      this.isDragging = true;
-      this.dragType = 'row';
-      this.dragTargetId = currentRow.id;
-      this.dragNextRowId = nextRow.id;
-      this.dragStartPos = e.clientY;
-      this.dragStartSize = currentRow.height;
-      this.dragNextStartSize = nextRow.height;
-      this.dragContainerSize = document.getElementById('canvasContainer').getBoundingClientRect().height;
-      
-      this.activeSeparator = sep;
-      sep.classList.add('active');
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    return sep;
-  }
-
-  createBlockSeparator(row, currentBlock, nextBlock) {
-    const sep = document.createElement('div');
-    sep.className = 'block-separator';
-    
-    sep.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.isDragging = true;
-      this.dragType = 'block';
-      this.dragTargetId = currentBlock.id;
-      this.dragNextBlockId = nextBlock.id;
-      this.dragRowId = row.id;
-      this.dragStartPos = e.clientX;
-      this.dragStartSize = currentBlock.width;
-      
-      const rowEl = document.querySelector(`[data-row-id="${row.id}"]`);
-      this.dragContainerSize = rowEl.getBoundingClientRect().width;
-      
-      this.activeSeparator = sep;
-      sep.classList.add('active');
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    return sep;
-  }
-
-  getBlockContent(type) {
-    switch (type) {
-      case 'schedule':
-        return `<div class="preview-lines blank-schedule">
-          <div class="time-slot"><span class="time-guide">06:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">07:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">08:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">09:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">10:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">11:00</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">12:00</span><span class="line"></span></div>
-        </div>`;
-      case 'todo':
-        return `<div class="preview-checks blank-todo">
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-          <div class="checkbox-line"><span class="checkbox">☐</span><span class="line"></span></div>
-        </div>`;
-      case 'memo':
-        return `<div class="preview-lines blank-memo">
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-          <div class="memo-line"></div>
-        </div>`;
-      case 'goal':
-        return `<div class="preview-lines blank-goal">
-          <div class="goal-line"><span class="bullet">•</span><span class="line"></span></div>
-          <div class="goal-line"><span class="bullet">•</span><span class="line"></span></div>
-          <div class="goal-line"><span class="bullet">•</span><span class="line"></span></div>
-        </div>`;
-      case 'habit':
-        return `<div class="preview-habit blank-habit">
-          <div class="habit-row">
-            <span class="habit-label-space"></span>
-            <span class="habit-checks">
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-            </span>
-          </div>
-          <div class="habit-row">
-            <span class="habit-label-space"></span>
-            <span class="habit-checks">
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-            </span>
-          </div>
-          <div class="habit-row">
-            <span class="habit-label-space"></span>
-            <span class="habit-checks">
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-              <span class="habit-box">○</span>
-            </span>
-          </div>
-        </div>`;
-      case 'time-log':
-        return `<div class="preview-lines blank-timelog">
-          <div class="time-slot"><span class="time-guide">__:__</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">__:__</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">__:__</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">__:__</span><span class="line"></span></div>
-          <div class="time-slot"><span class="time-guide">__:__</span><span class="line"></span></div>
-        </div>`;
-      case 'emotion':
-        return `<div class="preview-lines blank-emotion">
-          <div class="emotion-line"></div>
-          <div class="emotion-line"></div>
-          <div class="emotion-line"></div>
-        </div>`;
-      default:
-        return '<div class="preview-empty">Empty Block</div>';
+    // Time label on outer ring
+    if (seg.time) {
+      const [lx, ly] = toXY(LABEL_R, mDeg);
+      let rot = mDeg;
+      if (mDeg > 90 && mDeg <= 270) rot = mDeg - 180;
+      s += `<text x="${lx}" y="${ly}"
+        text-anchor="middle" dominant-baseline="middle"
+        font-size="6.5" font-family="${font}" fill="#9B7A8D"
+        transform="rotate(${rot},${lx},${ly})"
+        style="pointer-events:none;user-select:none">${escapeXml(seg.time)}</text>`;
     }
+  });
+
+  // Divider lines between segments
+  for (let i = 0; i < count; i++) {
+    const [x1, y1] = toXY(SEG_INNER, i * deg);
+    const [x2, y2] = toXY(SEG_OUTER, i * deg);
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="white" stroke-width="1.5"/>`;
   }
 
-  renderPropertyPanel() {
-    const panel = document.getElementById('propertyPanel');
-    
-    if (!this.data.selected) {
-      panel.innerHTML = '<div class="panel-empty">No selection</div>';
-      return;
-    }
+  // Center circle background
+  s += `<circle cx="${CX}" cy="${CY}" r="${CENTER_R + 5}" fill="white"/>`;
+  s += `<circle cx="${CX}" cy="${CY}" r="${CENTER_R}" fill="white" stroke="#F0D9E8" stroke-width="2"/>`;
 
-    const row = this.data.getSelectedRow();
-    const block = this.data.getSelectedBlock();
-    const rowIndex = this.data.rows.findIndex(r => r.id === row?.id);
+  // Decorative dots on center border
+  for (let i = 0; i < 36; i++) {
+    const [dx, dy] = toXY(CENTER_R + 2.5, i * 10);
+    s += `<circle cx="${dx}" cy="${dy}" r="1.8" fill="#F0D9E8"/>`;
+  }
 
-    if (this.data.selected.type === 'row') {
-      panel.innerHTML = `
-        <div class="property-section">
-          <h3>Row Info</h3>
-          <div class="info-grid">
-            <div class="info-row">
-              <span class="info-label">Row</span>
-              <span class="info-value">${rowIndex + 1}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Height</span>
-              <span class="info-value">${(row.height * 100).toFixed(0)}%</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Blocks</span>
-              <span class="info-value">${row.blocks.length}</span>
-            </div>
-          </div>
-        </div>
+  // Center text
+  const lines = [title, date, name].filter(Boolean);
+  const lineH = 13;
+  const startY = CY - ((lines.length - 1) * lineH) / 2;
 
-        <div class="property-divider"></div>
+  lines.forEach((line, i) => {
+    const isFirst = i === 0;
+    s += `<text x="${CX}" y="${startY + i * lineH}"
+      text-anchor="middle" dominant-baseline="middle"
+      font-size="${isFirst ? 9.5 : 8}"
+      font-weight="${isFirst ? '800' : '500'}"
+      font-family="${font}"
+      fill="${isFirst ? '#D63384' : '#9B7A8D'}"
+      style="pointer-events:none;user-select:none">${escapeXml(line)}</text>`;
+  });
 
-        <div class="property-section">
-          <h3>Add Block</h3>
-          <div class="block-type-grid">
-            ${BLOCK_TYPES.map(type => `
-              <button class="block-type-btn" data-type="${type}">
-                ${BLOCK_LABELS[type]}
-              </button>
-            `).join('')}
-          </div>
-        </div>
+  document.getElementById('planner').innerHTML = s;
+}
 
-        <div class="property-divider"></div>
+// ── Segment selection ─────────────────────────────────────────────────────────
+function selectSeg(idx) {
+  state.selected = state.selected === idx ? null : idx;
+  renderSVG();
+  renderEditor();
+}
 
-        <div class="property-section">
-          <button class="btn btn-danger" id="deleteRowBtn" ${this.data.rows.length <= 1 ? 'disabled' : ''}>
-            Delete Row
-          </button>
-        </div>
-      `;
+// ── Editor panel ─────────────────────────────────────────────────────────────
+function renderEditor() {
+  const panel = document.getElementById('editorPanel');
+  const { selected, segments } = state;
 
-      panel.querySelectorAll('[data-type]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          this.data.addBlock(row.id, btn.dataset.type);
-        });
-      });
+  if (selected === null) {
+    panel.innerHTML = `
+      <div class="panel-title">✏️ 칸 수정하기</div>
+      <div class="editor-empty">
+        <div class="editor-empty-icon">👆</div>
+        <p>원 안의 칸을 클릭해서<br>내용을 수정해보세요!</p>
+      </div>`;
+    return;
+  }
 
-      const deleteBtn = document.getElementById('deleteRowBtn');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-          if (confirm('Delete this row?')) {
-            this.data.deleteRow(row.id);
-          }
-        });
-      }
+  const seg = segments[selected];
+  const palette = PALETTES[state.theme];
 
-    } else {
-      panel.innerHTML = `
-        <div class="property-section">
-          <h3>Block Info</h3>
-          <div class="info-grid">
-            <div class="info-row">
-              <span class="info-label">Position</span>
-              <span class="info-value">Row ${rowIndex + 1}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Type</span>
-              <span class="info-value">${BLOCK_LABELS[block.type]}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Width</span>
-              <span class="info-value">${(block.width * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        </div>
+  const emojiBtns = EMOJIS.map(e =>
+    `<button class="emoji-btn${seg.emoji === e ? ' active' : ''}"
+      onclick="updateSeg('emoji','${e}')">${e}</button>`
+  ).join('');
 
-        <div class="property-divider"></div>
+  const colorSwatches = palette.slice(0, 24).map(c =>
+    `<button class="color-swatch${seg.color === c ? ' active' : ''}"
+      style="background:${c}"
+      onclick="updateSeg('color','${c}')"></button>`
+  ).join('');
 
-        <div class="property-section">
-          <h3>Label</h3>
-          <input type="text" class="property-input" id="labelInput" value="${block.label}" />
-          <label class="checkbox-label" style="margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 12px;">
-            <input type="checkbox" id="showLabelCheckbox" ${block.showLabel ? 'checked' : ''} />
-            <span>Show label on canvas</span>
-          </label>
-        </div>
+  panel.innerHTML = `
+    <div class="panel-title">✏️ ${selected + 1}번 칸 수정</div>
+    <div class="seg-editor">
+      <div class="seg-color-preview" style="background:${seg.color}">${seg.emoji}</div>
 
-        <div class="property-section">
-          <h3>Change Type</h3>
-          <select class="property-select" id="typeSelect">
-            ${BLOCK_TYPES.map(type => `
-              <option value="${type}" ${block.type === type ? 'selected' : ''}>
-                ${BLOCK_LABELS[type]}
-              </option>
-            `).join('')}
-          </select>
-        </div>
+      <div>
+        <div class="editor-section-label">활동 이름</div>
+        <input class="field-input" id="segLabel"
+          value="${escapeXml(seg.label)}"
+          placeholder="예) 공부, 운동..."
+          oninput="updateSeg('label', this.value)">
+      </div>
 
-        <div class="property-divider"></div>
+      <div>
+        <div class="editor-section-label">시간</div>
+        <input class="field-input" id="segTime"
+          value="${escapeXml(seg.time)}"
+          placeholder="예) 09:00"
+          oninput="updateSeg('time', this.value)">
+      </div>
 
-        <div class="property-section">
-          <h3>Add Block to Row</h3>
-          <div class="block-type-grid">
-            ${BLOCK_TYPES.map(type => `
-              <button class="block-type-btn" data-type="${type}">
-                ${BLOCK_LABELS[type]}
-              </button>
-            `).join('')}
-          </div>
-        </div>
+      <div>
+        <div class="editor-section-label">아이콘</div>
+        <div class="emoji-grid">${emojiBtns}</div>
+      </div>
 
-        <div class="property-divider"></div>
+      <div>
+        <div class="editor-section-label">색상</div>
+        <div class="color-grid">${colorSwatches}</div>
+      </div>
+    </div>`;
+}
 
-        <div class="property-section">
-          <button class="btn btn-danger" id="deleteBlockBtn">
-            Delete Block
-          </button>
-        </div>
-      `;
+function updateSeg(key, value) {
+  if (state.selected === null) return;
+  state.segments[state.selected][key] = value;
+  renderSVG();
 
-      const labelInput = document.getElementById('labelInput');
-      if (labelInput) {
-        let isComposing = false;
-        
-        labelInput.addEventListener('compositionstart', () => {
-          isComposing = true;
-        });
-        
-        labelInput.addEventListener('compositionend', (e) => {
-          isComposing = false;
-          this.data.updateBlock(row.id, block.id, { label: e.target.value }, false);
-        });
-        
-        labelInput.addEventListener('input', (e) => {
-          if (!isComposing) {
-            this.data.updateBlock(row.id, block.id, { label: e.target.value }, false);
-          }
-        });
-        
-        labelInput.addEventListener('blur', () => {
-          this.data.saveToHistory();
-        });
-      }
-
-      const showLabelCheckbox = document.getElementById('showLabelCheckbox');
-      if (showLabelCheckbox) {
-        showLabelCheckbox.addEventListener('change', (e) => {
-          this.data.updateBlock(row.id, block.id, { showLabel: e.target.checked });
-        });
-      }
-
-      const typeSelect = document.getElementById('typeSelect');
-      if (typeSelect) {
-        typeSelect.addEventListener('change', (e) => {
-          this.data.updateBlock(row.id, block.id, { type: e.target.value });
-        });
-      }
-
-      panel.querySelectorAll('[data-type]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          this.data.addBlock(row.id, btn.dataset.type);
-        });
-      });
-
-      const deleteBtn = document.getElementById('deleteBlockBtn');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-          if (confirm('Delete this block?')) {
-            this.data.deleteBlock(row.id, block.id);
-          }
-        });
-      }
+  // Re-render editor only for emoji/color (label/time use live input)
+  if (key === 'emoji' || key === 'color') renderEditor();
+  else {
+    // Update preview circle
+    const preview = document.querySelector('.seg-color-preview');
+    if (preview) {
+      preview.style.background = state.segments[state.selected].color;
+      preview.textContent = state.segments[state.selected].emoji;
     }
   }
 }
 
-// 앱 초기화
-document.addEventListener('DOMContentLoaded', () => {
-  const data = new LayoutData();
-  data.saveToHistory();
-  const ui = new UI(data);
-  ui.updateCanvasSize();
-  
-  // Reset Template 버튼
-  const resetBtn = document.getElementById('resetTemplateBtn');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      if (confirm('Reset to default template? Current layout will be lost.')) {
-        data.resetTemplate();
-      }
+// ── Download as SVG ──────────────────────────────────────────────────────────
+function downloadSVG() {
+  const svg = document.getElementById('planner');
+  const src = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([src], { type: 'image/svg+xml;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = '동그라미_일정표.svg';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Init & event wiring ───────────────────────────────────────────────────────
+function init() {
+  state.segments = buildSegments(state.count, state.theme);
+  renderSVG();
+  renderEditor();
+
+  // Header info inputs
+  ['inputTitle', 'inputDate', 'inputName'].forEach(id => {
+    document.getElementById(id).addEventListener('input', e => {
+      const key = id === 'inputTitle' ? 'title' : id === 'inputDate' ? 'date' : 'name';
+      state[key] = e.target.value;
+      renderSVG();
     });
-  }
-  
-  window.layoutData = data;
-  window.layoutUI = ui;
-});
+  });
+
+  // Segment count buttons
+  document.querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const count = parseInt(btn.dataset.count);
+      if (count === state.count) return;
+      state.count    = count;
+      state.selected = null;
+      state.segments = buildSegments(count, state.theme);
+      document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSVG();
+      renderEditor();
+    });
+  });
+
+  // Theme buttons
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.theme;
+      if (theme === state.theme) return;
+      state.theme = theme;
+      const palette = PALETTES[theme];
+      state.segments.forEach((seg, i) => { seg.color = palette[i % palette.length]; });
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSVG();
+      if (state.selected !== null) renderEditor();
+    });
+  });
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!confirm('처음 상태로 초기화할까요?')) return;
+    state.title    = '나의 방학 일정표';
+    state.date     = '2025년 여름방학';
+    state.name     = '';
+    state.count    = 12;
+    state.theme    = 'pastel';
+    state.selected = null;
+    state.segments = buildSegments(12, 'pastel');
+
+    document.getElementById('inputTitle').value = state.title;
+    document.getElementById('inputDate').value  = state.date;
+    document.getElementById('inputName').value  = '';
+
+    document.querySelectorAll('.seg-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.count === '12'));
+    document.querySelectorAll('.theme-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.theme === 'pastel'));
+
+    renderSVG();
+    renderEditor();
+  });
+
+  // Print
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+  // Download
+  document.getElementById('downloadBtn').addEventListener('click', downloadSVG);
+}
+
+document.addEventListener('DOMContentLoaded', init);
