@@ -3,91 +3,233 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>동그라미 일정표 만들기</title>
+  <title>하루 플래너</title>
   <link rel="stylesheet" href="Style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF7EB3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="하루플래너">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="header-brand">
         <span class="logo">🌈</span>
-        <h1>동그라미 일정표 만들기</h1>
-      </div>
-      <div class="header-actions">
-        <button id="printBtn" class="btn btn-outline">🖨️ 인쇄</button>
-        <button id="downloadBtn" class="btn btn-primary">💾 저장</button>
+        <h1>하루 플래너</h1>
       </div>
     </header>
 
-    <div class="workspace">
-      <!-- Left Sidebar -->
-      <aside class="sidebar left-sidebar">
+    <!-- Tab Bar -->
+    <nav class="tab-bar" id="tabBar">
+      <button class="tab-btn active" data-tab="planner">🗓<span>일정표</span></button>
+      <button class="tab-btn" data-tab="todo">✅<span>투두</span></button>
+      <button class="tab-btn" data-tab="routine">🔄<span>루틴</span></button>
+      <button class="tab-btn" data-tab="report">📊<span>리포트</span></button>
+    </nav>
 
-        <div class="panel">
-          <div class="panel-title">📝 기본 정보</div>
-          <div class="field-group">
-            <label class="field-label">제목</label>
-            <input class="field-input" id="inputTitle" type="text" placeholder="예) 여름방학 일과표" value="나의 방학 일정표">
+    <!-- ══ Tab: 일정표 ══ -->
+    <div id="tab-planner" class="tab-content active">
+      <div class="workspace">
+
+        <aside class="sidebar left-sidebar">
+          <div class="panel">
+            <div class="panel-title">📝 기본 정보</div>
+            <div class="field-group">
+              <label class="field-label">제목</label>
+              <input class="field-input" id="inputTitle" type="text" placeholder="예) 여름방학 일과표" value="나의 방학 일정표">
+            </div>
+            <div class="field-group">
+              <label class="field-label">날짜 / 기간</label>
+              <input class="field-input" id="inputDate" type="text" placeholder="예) 2025년 여름방학" value="2025년 여름방학">
+            </div>
+            <div class="field-group">
+              <label class="field-label">이름</label>
+              <input class="field-input" id="inputName" type="text" placeholder="예) 홍길동">
+            </div>
           </div>
-          <div class="field-group">
-            <label class="field-label">날짜 / 기간</label>
-            <input class="field-input" id="inputDate" type="text" placeholder="예) 2025년 여름방학" value="2025년 여름방학">
+
+          <div class="panel">
+            <div class="panel-title">⚙️ 칸 수</div>
+            <div class="seg-count-group">
+              <button class="seg-btn" data-count="6">6칸</button>
+              <button class="seg-btn" data-count="8">8칸</button>
+              <button class="seg-btn active" data-count="12">12칸</button>
+              <button class="seg-btn" data-count="16">16칸</button>
+              <button class="seg-btn" data-count="24">24칸</button>
+            </div>
           </div>
+
+          <div class="panel">
+            <div class="panel-title">🎨 색상 테마</div>
+            <div class="theme-group">
+              <button class="theme-btn active" data-theme="pastel">🌸 파스텔</button>
+              <button class="theme-btn" data-theme="vivid">🌈 비비드</button>
+              <button class="theme-btn" data-theme="ocean">🌊 바다</button>
+              <button class="theme-btn" data-theme="forest">🌿 숲</button>
+              <button class="theme-btn" data-theme="sunset">🌅 노을</button>
+              <button class="theme-btn" data-theme="candy">🍭 캔디</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="planner-actions">
+              <button class="btn btn-outline" id="printBtn">🖨️ 인쇄</button>
+              <button class="btn btn-primary" id="downloadBtn">💾 저장</button>
+            </div>
+            <button class="btn btn-reset" id="resetBtn" style="margin-top:8px">🔄 처음으로 초기화</button>
+          </div>
+        </aside>
+
+        <main class="canvas-area">
+          <div class="planner-wrapper">
+            <svg id="planner" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="canvas-hint">💡 원 안의 칸을 클릭하면 내용을 수정할 수 있어요!</div>
+        </main>
+
+        <aside class="sidebar right-sidebar">
+          <div id="editorPanel" class="panel editor-panel">
+            <div class="panel-title">✏️ 칸 수정하기</div>
+            <div class="editor-empty">
+              <div class="editor-empty-icon">👆</div>
+              <p>원 안의 칸을 클릭해서<br>내용을 수정해보세요!</p>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+
+    <!-- ══ Tab: 투두 ══ -->
+    <div id="tab-todo" class="tab-content">
+      <div class="tab-page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">✅ 오늘의 할 일</h2>
+            <div class="page-date" id="todayDate"></div>
+          </div>
+          <div class="progress-badge" id="todoBadge">0/0</div>
+        </div>
+
+        <div class="todo-input-row">
+          <select id="todoPriority" class="priority-select">
+            <option value="high">🔴</option>
+            <option value="medium" selected>🟡</option>
+            <option value="low">🟢</option>
+          </select>
+          <input id="todoInput" class="field-input todo-input" type="text" placeholder="할 일을 입력하세요...">
+          <button id="todoAddBtn" class="btn btn-primary">추가</button>
+        </div>
+
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">전체</button>
+          <button class="filter-btn" data-filter="active">진행 중</button>
+          <button class="filter-btn" data-filter="done">완료</button>
+        </div>
+
+        <div id="todoList" class="todo-list"></div>
+      </div>
+    </div>
+
+    <!-- ══ Tab: 루틴 ══ -->
+    <div id="tab-routine" class="tab-content">
+      <div class="tab-page">
+        <div class="page-header">
+          <h2 class="page-title">🔄 루틴 관리</h2>
+          <button id="addRoutineBtn" class="btn btn-primary btn-sm">+ 추가</button>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">오늘의 루틴</div>
+          <div id="todayRoutineList" class="routine-list"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">전체 루틴</div>
+          <div id="allRoutineList" class="routine-list"></div>
+        </div>
+      </div>
+
+      <!-- Routine Add Sheet -->
+      <div id="routineSheet" class="bottom-sheet hidden">
+        <div class="sheet-backdrop" id="sheetBackdrop"></div>
+        <div class="sheet-content">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">새 루틴 추가</div>
+
           <div class="field-group">
             <label class="field-label">이름</label>
-            <input class="field-input" id="inputName" type="text" placeholder="예) 홍길동">
+            <input id="routineName" class="field-input" placeholder="예) 아침 운동">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">이모지</label>
+            <div class="routine-emoji-picker" id="routineEmojiPicker"></div>
+            <div class="selected-emoji-preview" id="selectedEmojiPreview">⭐</div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">반복 요일</label>
+            <div class="day-toggle-group" id="dayToggleGroup">
+              <button class="day-btn active" data-day="mon">월</button>
+              <button class="day-btn active" data-day="tue">화</button>
+              <button class="day-btn active" data-day="wed">수</button>
+              <button class="day-btn active" data-day="thu">목</button>
+              <button class="day-btn active" data-day="fri">금</button>
+              <button class="day-btn" data-day="sat">토</button>
+              <button class="day-btn" data-day="sun">일</button>
+            </div>
+          </div>
+
+          <div class="sheet-actions">
+            <button id="routineCancelBtn" class="btn btn-outline">취소</button>
+            <button id="routineSaveBtn" class="btn btn-primary">저장</button>
           </div>
         </div>
-
-        <div class="panel">
-          <div class="panel-title">⚙️ 칸 수</div>
-          <div class="seg-count-group">
-            <button class="seg-btn" data-count="6">6칸</button>
-            <button class="seg-btn" data-count="8">8칸</button>
-            <button class="seg-btn active" data-count="12">12칸</button>
-            <button class="seg-btn" data-count="16">16칸</button>
-            <button class="seg-btn" data-count="24">24칸</button>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-title">🎨 색상 테마</div>
-          <div class="theme-group">
-            <button class="theme-btn active" data-theme="pastel">🌸 파스텔</button>
-            <button class="theme-btn" data-theme="vivid">🌈 비비드</button>
-            <button class="theme-btn" data-theme="ocean">🌊 바다</button>
-            <button class="theme-btn" data-theme="forest">🌿 숲</button>
-            <button class="theme-btn" data-theme="sunset">🌅 노을</button>
-            <button class="theme-btn" data-theme="candy">🍭 캔디</button>
-          </div>
-        </div>
-
-        <div class="panel">
-          <button class="btn btn-reset" id="resetBtn">🔄 처음으로 초기화</button>
-        </div>
-
-      </aside>
-
-      <!-- Center Canvas -->
-      <main class="canvas-area">
-        <div class="planner-wrapper">
-          <svg id="planner" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>
-        <div class="canvas-hint">💡 원 안의 칸을 클릭하면 내용을 수정할 수 있어요!</div>
-      </main>
-
-      <!-- Right Sidebar -->
-      <aside class="sidebar right-sidebar">
-        <div id="editorPanel" class="panel editor-panel">
-          <div class="panel-title">✏️ 칸 수정하기</div>
-          <div class="editor-empty">
-            <div class="editor-empty-icon">👆</div>
-            <p>원 안의 칸을 클릭해서<br>내용을 수정해보세요!</p>
-          </div>
-        </div>
-      </aside>
+      </div>
     </div>
-  </div>
+
+    <!-- ══ Tab: 리포트 ══ -->
+    <div id="tab-report" class="tab-content">
+      <div class="tab-page">
+        <div class="page-header">
+          <h2 class="page-title">📊 리포트</h2>
+          <div class="page-date" id="reportDate"></div>
+        </div>
+
+        <div class="report-cards">
+          <div class="report-card">
+            <div class="report-card-icon">✅</div>
+            <div class="report-card-label">오늘 투두</div>
+            <div class="report-card-value" id="reportTodoRate">-</div>
+          </div>
+          <div class="report-card">
+            <div class="report-card-icon">🔄</div>
+            <div class="report-card-label">오늘 루틴</div>
+            <div class="report-card-value" id="reportRoutineRate">-</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">📅 주간 투두 완료율</div>
+          <svg id="weeklyChart" class="weekly-chart"></svg>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">🗓 최근 7일 루틴 현황</div>
+          <div id="heatmapGrid" class="heatmap-grid"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">🔥 루틴 스트릭 순위</div>
+          <div id="streakList" class="streak-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .app -->
 
   <script src="Script.js"></script>
 </body>
